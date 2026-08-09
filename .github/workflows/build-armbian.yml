@@ -1,0 +1,33 @@
+name: Build X96Q v1.3 diagnostic image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: x96q-v1-3-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Build minimal Armbian image
+        uses: armbian/build@main
+        with:
+          armbian_token: ${{ secrets.GITHUB_TOKEN }}
+          armbian_board: x96q
+          armbian_target: build
+          armbian_branch: main
+          armbian_kernel_branch: current
+          armbian_release: bookworm
+          armbian_ui: minimal
+          armbian_compress: sha,img,xz
+          armbian_runner_clean: yes
+          armbian_release_title: X96Q v1.3 diagnostic Ethernet image
+          armbian_release_body: Minimal Bookworm test image. Test from SD only; do not install to eMMC.
+
