@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: sicXnull/armbian-build
-          ref: v24.8.0-trunk.425
+          ref: 6e7d2798e
           path: armbian
           fetch-depth: 1
 
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           actual="$(git rev-parse --short=7 HEAD)"
-          test "$actual" = "49e0ec5"
+          test "$actual" = "6e7d279"
           echo "Pinned Armbian build revision: $actual"
 
       - name: Restore the X96Q board definition
@@ -66,6 +66,14 @@ jobs:
         working-directory: armbian
         shell: bash
         run: find output/debs -type f -name '*.deb' -print -exec dpkg-deb -f {} Package Version Description \;
+
+      - name: Reject packages for the wrong kernel
+        working-directory: armbian
+        shell: bash
+        run: |
+          set -euo pipefail
+          find output/debs -type f -name 'linux-headers*__6.12.64-*.deb' | grep -q .
+          find output/debs -type f -name 'linux-image*__6.12.64-*.deb' | grep -q .
 
       - name: Upload kernel packages
         uses: actions/upload-artifact@v4
