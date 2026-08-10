@@ -33,12 +33,28 @@ jobs:
           test "$actual" = "49e0ec5"
           echo "Pinned Armbian build revision: $actual"
 
+      - name: Restore the X96Q board definition
+        working-directory: armbian
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p userpatches/config/boards
+          cat > userpatches/config/boards/x96q.conf <<'EOF'
+          BOARD_NAME="X96Q TV Box LPDDR3"
+          BOARDFAMILY="sun50iw9"
+          BOARD_MAINTAINER="sicXnull"
+          BOOTCONFIG="x96q_lpddr3_defconfig"
+          KERNEL_TARGET="current"
+          FORCE_BOOTSCRIPT_UPDATE="yes"
+          OVERLAY_PREFIX="sun50i-h616"
+          EOF
+
       - name: Build kernel packages only
         working-directory: armbian
         shell: bash
         run: |
           set -euo pipefail
-          sudo ./compile.sh build \
+          ./compile.sh build \
             BOARD=x96q \
             BRANCH=current \
             RELEASE=bookworm \
