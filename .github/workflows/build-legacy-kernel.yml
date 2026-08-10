@@ -54,13 +54,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./compile.sh build \
+          ./compile.sh kernel \
             BOARD=x96q \
             BRANCH=current \
             RELEASE=bookworm \
             BUILD_MINIMAL=yes \
             BUILD_DESKTOP=no \
-            KERNEL_ONLY=yes \
             KERNEL_CONFIGURE=no
 
       - name: Show generated packages
