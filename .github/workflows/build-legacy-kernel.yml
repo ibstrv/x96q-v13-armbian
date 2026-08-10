@@ -1,0 +1,61 @@
+name: Build pinned X96Q 6.12.64 kernel packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x96q-v1-3-legacy-kernel
+  cancel-in-progress: false
+
+jobs:
+  build-kernel-packages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+
+    steps:
+      - name: Check out the exact framework used by the working image
+        uses: actions/checkout@v4
+        with:
+          repository: sicXnull/armbian-build
+          ref: v24.8.0-trunk.425
+          path: armbian
+          fetch-depth: 1
+
+      - name: Verify pinned build revision
+        working-directory: armbian
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse --short=7 HEAD)"
+          test "$actual" = "49e0ec5"
+          echo "Pinned Armbian build revision: $actual"
+
+      - name: Build kernel packages only
+        working-directory: armbian
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo ./compile.sh build \
+            BOARD=x96q \
+            BRANCH=current \
+            RELEASE=bookworm \
+            BUILD_MINIMAL=yes \
+            BUILD_DESKTOP=no \
+            KERNEL_ONLY=yes \
+            KERNEL_CONFIGURE=no
+
+      - name: Show generated packages
+        working-directory: armbian
+        shell: bash
+        run: find output/debs -type f -name '*.deb' -print -exec dpkg-deb -f {} Package Version Description \;
+
+      - name: Upload kernel packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: x96q-pinned-kernel-packages
+          path: armbian/output/debs/**/*.deb
+          if-no-files-found: error
+          retention-days: 14
