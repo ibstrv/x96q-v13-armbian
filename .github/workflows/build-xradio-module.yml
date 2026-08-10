@@ -1,0 +1,77 @@
+name: Build XR819 module for X96Q kernel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out build files
+        uses: actions/checkout@v4
+
+      - name: Check out Linux 6.12.64
+        uses: actions/checkout@v4
+        with:
+          repository: gregkh/linux
+          ref: v6.12.64
+          path: linux
+          fetch-depth: 1
+
+      - name: Check out the maintained XRadio driver
+        uses: actions/checkout@v4
+        with:
+          repository: fifteenhex/xradio
+          ref: 43992a7e7ed95ff815cf6d8ba81cef1085e50ab9
+          path: xradio
+          fetch-depth: 1
+
+      - name: Install the ARM64 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu make flex bison bc \
+            libssl-dev libelf-dev kmod
+
+      - name: Prepare the exact X96Q kernel configuration
+        run: |
+          gzip -dc config.gz > linux/.config
+          make -C linux \
+            ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            LOCALVERSION=-current-sunxi64 \
+            olddefconfig prepare modules_prepare
+
+      - name: Build xradio_wlan.ko
+        run: |
+          make -C linux \
+            ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            LOCALVERSION=-current-sunxi64 \
+            KBUILD_MODPOST_WARN=1 \
+            M="$GITHUB_WORKSPACE/xradio" \
+            modules
+
+      - name: Validate and package the test module
+        run: |
+          module="$(find xradio -type f -name xradio_wlan.ko -print -quit)"
+          test -n "$module"
+          file "$module" | tee module-file.txt
+          modinfo "$module" | tee modinfo.txt
+          test "$(modinfo -F vermagic "$module")" = \
+            "6.12.64-current-sunxi64 SMP mod_unload aarch64"
+          file "$module" | grep -q 'ARM aarch64'
+          mkdir -p artifact
+          cp "$module" artifact/xradio_wlan.ko
+          cp module-file.txt modinfo.txt artifact/
+          sha256sum artifact/xradio_wlan.ko | tee artifact/SHA256SUMS
+
+      - name: Upload the test module
+        uses: actions/upload-artifact@v4
+        with:
+          name: xradio-wlan-6.12.64-test
+          path: artifact/
+          if-no-files-found: error
